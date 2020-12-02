@@ -8,6 +8,7 @@ from rest_framework import status
 
 CREATE_USER_URL = reverse('user:create')
 TOKEN_URL = reverse('user:token')
+SELF_URL = reverse('user:me')
 
 
 def create_user(**params):
@@ -82,3 +83,51 @@ class PublicUserApiTests(TestCase):
 
         self.assertNotIn('token', response.data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_retrieve_unauthorized_user(self):
+        """Test that we require authentication for users endpoint"""
+        response = self.client.get(SELF_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PrivateUserApiTests(TestCase):
+    """Test API requests that required authentication"""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = create_user(
+            email='test@email.com',
+            password='test-password1',
+            name='Test Name'
+        )
+        self.client = APIClient
+        self.client.force_authenticate(user=self.user)
+
+    def test_retrieve_user_profile_success(self):
+        """Test retrieve profile for logged in user"""
+        response = self.client.get(SELF_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {
+            'email': self.user.email,
+            'name': self.user.name
+        })
+
+    def test_post_self_not_allowed(self):
+        """Test that POST is not allowed on the self url"""
+        response = self.client.post(SELF_URL, {})
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_update_user_profile(self):
+        """Test updating profile for authenticated user"""
+        payload = {'name': 'New Name', 'password': 'new-password-123'}
+
+        response = self.client.patch(SELF_URL, payload)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+
+        self.assertEqual(self.user.name, payload['name'])
+        self.assertTrue(self.user.check_password(payload['password']))
