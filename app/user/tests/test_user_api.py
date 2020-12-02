@@ -8,7 +8,7 @@ from rest_framework import status
 
 CREATE_USER_URL = reverse('user:create')
 TOKEN_URL = reverse('user:token')
-SELF_URL = reverse('user:me')
+SELF_URL = reverse('user:self')
 
 
 def create_user(**params):
@@ -101,7 +101,7 @@ class PrivateUserApiTests(TestCase):
             password='test-password1',
             name='Test Name'
         )
-        self.client = APIClient
+        self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
     def test_retrieve_user_profile_success(self):
